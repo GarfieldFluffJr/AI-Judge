@@ -1,0 +1,10 @@
+{
+  "name": "ai-judge-platform",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "dev:emulators": "firebase emulators:start",
+    "build": "cd frontend && npm run build",
+    "build:functions": "cd functions && npm run build"
+  }
+}

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // For this take-home project, allow all reads/writes.
+    // In production, you'd add authentication and role-based rules.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

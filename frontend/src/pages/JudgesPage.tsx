@@ -226,7 +226,7 @@ export default function JudgesPage() {
                 id="name"
                 placeholder="e.g., Accuracy Judge"
                 value={form.name}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
               />
@@ -236,7 +236,7 @@ export default function JudgesPage() {
               <Label htmlFor="model">Target Model</Label>
               <Select
                 value={form.targetModel}
-                onValueChange={(v) =>
+                onValueChange={(v: string) =>
                   setForm((f) => ({ ...f, targetModel: v }))
                 }
               >
@@ -265,7 +265,7 @@ export default function JudgesPage() {
                 placeholder="Evaluate the answer for correctness. Pass if the answer is factually correct and complete..."
                 rows={6}
                 value={form.systemPrompt}
-                onChange={(e) =>
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                   setForm((f) => ({ ...f, systemPrompt: e.target.value }))
                 }
               />
@@ -275,7 +275,7 @@ export default function JudgesPage() {
               <Switch
                 id="active"
                 checked={form.active}
-                onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))}
+                onCheckedChange={(v: boolean) => setForm((f) => ({ ...f, active: v }))}
               />
               <Label htmlFor="active">Active</Label>
             </div>

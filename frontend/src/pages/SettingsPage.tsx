@@ -75,7 +75,7 @@ function ApiKeyInput({
             type={showKey || hasChanged ? "text" : "password"}
             placeholder={placeholder}
             value={hasChanged ? value : maskedValue}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
           />
           <button
             type="button"

@@ -1,10 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-} from "lucide-react";
+import { BarChart3, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -74,7 +69,7 @@ function MultiSelect({
             >
               <Checkbox
                 checked={selected.includes(opt.value)}
-                onCheckedChange={(checked) => {
+                onCheckedChange={(checked: boolean | "indeterminate") => {
                   if (checked) {
                     onChange([...selected, opt.value]);
                   } else {
@@ -227,7 +222,7 @@ export default function ResultsPage() {
       <div className="flex flex-wrap gap-2">
         <Select
           value={filters.queueId ?? "all"}
-          onValueChange={(v) =>
+          onValueChange={(v: string) =>
             setFilters((f) => ({
               ...f,
               queueId: v === "all" ? undefined : v,

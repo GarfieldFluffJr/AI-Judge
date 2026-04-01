@@ -1,5 +1,17 @@
 import { useState, useMemo } from "react";
 import { BarChart3, Filter } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -151,6 +163,37 @@ export default function ResultsPage() {
     { value: "inconclusive", label: "Inconclusive" },
   ];
 
+  // Chart data
+  const pieData = useMemo(() => {
+    if (!stats) return [];
+    return [
+      { name: "Pass", value: stats.pass, color: "#22c55e" },
+      { name: "Fail", value: stats.fail, color: "#ef4444" },
+      { name: "Inconclusive", value: stats.inconclusive, color: "#eab308" },
+    ].filter((d) => d.value > 0);
+  }, [stats]);
+
+  const judgeBarData = useMemo(() => {
+    if (!evaluations) return [];
+    const byJudge = new Map<string, { name: string; pass: number; fail: number; inconclusive: number; total: number }>();
+    for (const e of evaluations) {
+      if (e.status !== "completed") continue;
+      if (!byJudge.has(e.judgeId)) {
+        byJudge.set(e.judgeId, { name: e.judgeName, pass: 0, fail: 0, inconclusive: 0, total: 0 });
+      }
+      const entry = byJudge.get(e.judgeId)!;
+      entry[e.verdict]++;
+      entry.total++;
+    }
+    return Array.from(byJudge.values()).map((j) => ({
+      name: j.name,
+      "Pass Rate": j.total > 0 ? Math.round((j.pass / j.total) * 100) : 0,
+      Pass: j.pass,
+      Fail: j.fail,
+      Inconclusive: j.inconclusive,
+    }));
+  }, [evaluations]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -215,6 +258,67 @@ export default function ResultsPage() {
               <p className="text-2xl font-bold">{stats.inconclusive}</p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Charts */}
+      {stats && stats.total > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Verdict Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={3}
+                    dataKey="value"
+                    animationBegin={0}
+                    animationDuration={800}
+                    label={({ name, percent }: { name?: string; percent?: number }) =>
+                      `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                  >
+                    {pieData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {judgeBarData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Pass Rate by Judge</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={judgeBarData}>
+                    <XAxis dataKey="name" fontSize={12} />
+                    <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} fontSize={12} />
+                    <RechartsTooltip formatter={(value) => `${value}%`} />
+                    <Bar
+                      dataKey="Pass Rate"
+                      fill="#22c55e"
+                      radius={[4, 4, 0, 0]}
+                      animationBegin={0}
+                      animationDuration={800}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

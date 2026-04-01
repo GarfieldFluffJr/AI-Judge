@@ -1,17 +1,7 @@
 import { useState, useMemo } from "react";
 import { BarChart3, Filter } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+import { DonutChart } from "@/components/charts/DonutChart";
+import { BarChart } from "@/components/charts/BarChart";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -167,9 +157,9 @@ export default function ResultsPage() {
   const pieData = useMemo(() => {
     if (!stats) return [];
     return [
-      { name: "Pass", value: stats.pass, color: "#22c55e" },
-      { name: "Fail", value: stats.fail, color: "#ef4444" },
-      { name: "Inconclusive", value: stats.inconclusive, color: "#eab308" },
+      { label: "Pass", value: stats.pass, color: "#22c55e" },
+      { label: "Fail", value: stats.fail, color: "#ef4444" },
+      { label: "Inconclusive", value: stats.inconclusive, color: "#eab308" },
     ].filter((d) => d.value > 0);
   }, [stats]);
 
@@ -268,31 +258,8 @@ export default function ResultsPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Verdict Distribution</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={3}
-                    dataKey="value"
-                    animationBegin={0}
-                    animationDuration={800}
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
-                    }
-                  >
-                    {pieData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+            <CardContent className="flex justify-center">
+              <DonutChart data={pieData} />
             </CardContent>
           </Card>
 
@@ -302,20 +269,13 @@ export default function ResultsPage() {
                 <CardTitle className="text-base">Pass Rate by Judge</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={judgeBarData}>
-                    <XAxis dataKey="name" fontSize={12} />
-                    <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} fontSize={12} />
-                    <RechartsTooltip formatter={(value) => `${value}%`} />
-                    <Bar
-                      dataKey="Pass Rate"
-                      fill="#22c55e"
-                      radius={[4, 4, 0, 0]}
-                      animationBegin={0}
-                      animationDuration={800}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+                  data={judgeBarData.map((j) => ({
+                    label: j.name,
+                    value: j["Pass Rate"],
+                  }))}
+                  maxValue={100}
+                />
               </CardContent>
             </Card>
           )}

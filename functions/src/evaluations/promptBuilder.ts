@@ -1,10 +1,9 @@
 export function buildEvaluationPrompt(
   judgeSystemPrompt: string,
   question: {
-    type: string;
-    text: string;
-    options: string[];
-    answer: string | string[];
+    questionType: string;
+    questionText: string;
+    answer: Record<string, unknown>;
   }
 ): { systemPrompt: string; userPrompt: string } {
   const systemPrompt = `You are an AI judge evaluating answers to questions. Your evaluation rubric is as follows:
@@ -24,17 +23,15 @@ Rules:
 - Keep reasoning concise but specific (2-4 sentences)
 - Respond ONLY with the JSON object, no other text`;
 
-  let userPrompt = `Question Type: ${question.type}\n`;
-  userPrompt += `Question: ${question.text}\n`;
+  let userPrompt = `Question Type: ${question.questionType}\n`;
+  userPrompt += `Question: ${question.questionText}\n\n`;
 
-  if (question.options.length > 0) {
-    userPrompt += `Options:\n${question.options.map((o, i) => `  ${i + 1}. ${o}`).join("\n")}\n`;
+  // Format the answer object — handles { choice, reasoning } and other shapes
+  userPrompt += `Answer:\n`;
+  for (const [key, value] of Object.entries(question.answer)) {
+    userPrompt += `  ${key}: ${value}\n`;
   }
 
-  const answerStr = Array.isArray(question.answer)
-    ? question.answer.join(", ")
-    : question.answer;
-  userPrompt += `\nAnswer Given: ${answerStr}\n`;
   userPrompt += `\nEvaluate this answer according to your rubric. Respond with JSON only.`;
 
   return { systemPrompt, userPrompt };
@@ -44,7 +41,6 @@ export function parseEvaluationResponse(raw: string): {
   verdict: "pass" | "fail" | "inconclusive";
   reasoning: string;
 } {
-  // Try to extract JSON from the response (handle markdown code fences)
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     return {

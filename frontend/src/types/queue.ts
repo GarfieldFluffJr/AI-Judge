@@ -1,23 +1,28 @@
-export interface QueueInput {
-  id: string;
-  name: string;
-  submissions: SubmissionInput[];
-}
-
+// Shape of the actual JSON input file
 export interface SubmissionInput {
   id: string;
-  subject: Record<string, unknown>;
-  questions: QuestionInput[];
+  queueId: string;
+  labelingTaskId: string;
+  createdAt: number; // unix ms
+  questions: Array<{
+    rev: number;
+    data: {
+      id: string;
+      questionType: string;
+      questionText: string;
+    };
+  }>;
+  answers: Record<
+    string,
+    {
+      choice?: string;
+      reasoning?: string;
+      [key: string]: unknown;
+    }
+  >;
 }
 
-export interface QuestionInput {
-  id: string;
-  type: "multiple_choice" | "single_choice" | "free_form";
-  text: string;
-  options?: string[];
-  answer: string | string[];
-}
-
+// Firestore documents
 export interface Queue {
   id: string;
   name: string;
@@ -29,7 +34,8 @@ export interface Queue {
 export interface Submission {
   id: string;
   queueId: string;
-  subject: Record<string, unknown>;
+  labelingTaskId: string;
+  createdAt: Date;
   questionCount: number;
 }
 
@@ -37,8 +43,8 @@ export interface Question {
   id: string;
   queueId: string;
   submissionId: string;
-  type: "multiple_choice" | "single_choice" | "free_form";
-  text: string;
-  options: string[];
-  answer: string | string[];
+  questionType: string;
+  questionText: string;
+  rev: number;
+  answer: Record<string, unknown>;
 }

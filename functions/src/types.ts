@@ -1,32 +1,33 @@
 import { z } from "zod";
 
-export const QuestionSchema = z.object({
+export const QuestionDataSchema = z.object({
   id: z.string(),
-  type: z.enum(["multiple_choice", "single_choice", "free_form"]),
-  text: z.string(),
-  options: z.array(z.string()).optional().default([]),
-  answer: z.union([z.string(), z.array(z.string())]),
+  questionType: z.string(),
+  questionText: z.string(),
 });
+
+export const QuestionSchema = z.object({
+  rev: z.number(),
+  data: QuestionDataSchema,
+});
+
+export const AnswerSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.unknown())
+);
 
 export const SubmissionSchema = z.object({
   id: z.string(),
-  subject: z.record(z.unknown()).optional().default({}),
+  queueId: z.string(),
+  labelingTaskId: z.string(),
+  createdAt: z.number(),
   questions: z.array(QuestionSchema),
+  answers: AnswerSchema,
 });
 
-export const QueueSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  submissions: z.array(SubmissionSchema),
-});
+export const UploadInputSchema = z.array(SubmissionSchema);
 
-export const UploadInputSchema = z.object({
-  queues: z.array(QueueSchema),
-});
-
-export type QuestionInput = z.infer<typeof QuestionSchema>;
 export type SubmissionInput = z.infer<typeof SubmissionSchema>;
-export type QueueInput = z.infer<typeof QueueSchema>;
 
 export interface LlmResponse {
   text: string;

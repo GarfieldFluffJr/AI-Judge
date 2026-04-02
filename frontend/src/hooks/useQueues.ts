@@ -4,9 +4,9 @@ import {
   fetchQueue,
   fetchSubmissions,
   fetchQuestions,
-  uploadQueueData,
+  uploadSubmissions,
 } from "@/lib/firestore";
-import type { QueueInput } from "@/types/queue";
+import type { SubmissionInput } from "@/types/queue";
 
 export function useQueues() {
   return useQuery({
@@ -42,7 +42,8 @@ export function useQuestions(queueId: string, submissionId: string) {
 export function useUploadData() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (queues: QueueInput[]) => uploadQueueData(queues),
+    mutationFn: (submissions: SubmissionInput[]) =>
+      uploadSubmissions(submissions),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queues"] });
     },

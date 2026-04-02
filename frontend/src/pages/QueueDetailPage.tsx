@@ -36,9 +36,24 @@ import {
 } from "@/components/ui/select";
 import { useQueue, useSubmissions, useQuestions } from "@/hooks/useQueues";
 import { useJudges } from "@/hooks/useJudges";
-import { useAssignments, useCreateAssignment, useRemoveAssignment } from "@/hooks/useAssignments";
+import {
+  useAssignments,
+  useCreateAssignment,
+  useRemoveAssignment,
+} from "@/hooks/useAssignments";
 import { useRunBatchEvaluation } from "@/hooks/useEvaluations";
 import { toast } from "sonner";
+
+function formatAnswer(answer: Record<string, unknown>): string {
+  if (answer.choice && answer.reasoning) {
+    return `${answer.choice} — ${answer.reasoning}`;
+  }
+  if (answer.choice) return String(answer.choice);
+  // Fallback: show all key-value pairs
+  return Object.entries(answer)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(", ");
+}
 
 function SubmissionQuestions({
   queueId,
@@ -47,7 +62,12 @@ function SubmissionQuestions({
 }: {
   queueId: string;
   submissionId: string;
-  assignments: Array<{ id: string; judgeId: string; judgeName: string; questionId: string | null }>;
+  assignments: Array<{
+    id: string;
+    judgeId: string;
+    judgeName: string;
+    questionId: string | null;
+  }>;
 }) {
   const { data: questions, isLoading } = useQuestions(queueId, submissionId);
 
@@ -69,16 +89,16 @@ function SubmissionQuestions({
         );
         return (
           <TableRow key={q.id}>
-            <TableCell className="max-w-xs truncate text-sm">
-              {q.text}
+            <TableCell className="max-w-xs text-sm">
+              <div className="truncate">{q.questionText}</div>
             </TableCell>
             <TableCell>
               <Badge variant="outline" className="text-xs">
-                {q.type.replace("_", " ")}
+                {q.questionType.replace(/_/g, " ")}
               </Badge>
             </TableCell>
-            <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-              {Array.isArray(q.answer) ? q.answer.join(", ") : q.answer}
+            <TableCell className="max-w-[250px] text-sm text-muted-foreground">
+              <div className="truncate">{formatAnswer(q.answer)}</div>
             </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
@@ -134,7 +154,9 @@ export default function QueueDetailPage() {
       setAssignDialogOpen(false);
       setSelectedJudgeId("");
     } catch (err) {
-      toast.error(`Failed to assign judge: ${err instanceof Error ? err.message : "Unknown error"}`);
+      toast.error(
+        `Failed to assign judge: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
     }
   };
 
@@ -146,7 +168,9 @@ export default function QueueDetailPage() {
         `Evaluation complete: ${result.succeeded} succeeded, ${result.failed} failed out of ${result.total} total`
       );
     } catch (err) {
-      toast.error(`Evaluation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      toast.error(
+        `Evaluation failed: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
     }
   };
 
@@ -293,9 +317,6 @@ export default function QueueDetailPage() {
         <CardContent>
           {submissions?.map((sub) => {
             const isExpanded = expandedSubmissions.has(sub.id);
-            const subjectStr = Object.entries(sub.subject)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(", ");
 
             return (
               <div key={sub.id} className="border-b last:border-b-0">
@@ -304,14 +325,18 @@ export default function QueueDetailPage() {
                   onClick={() => toggleSubmission(sub.id)}
                 >
                   <div>
-                    <span className="font-medium">Submission {sub.id}</span>
-                    {subjectStr && (
+                    <span className="font-medium">
+                      Submission {sub.id}
+                    </span>
+                    {sub.labelingTaskId && (
                       <span className="ml-2 text-sm text-muted-foreground">
-                        ({subjectStr})
+                        (task: {sub.labelingTaskId})
                       </span>
                     )}
                   </div>
-                  <Badge variant="outline">{sub.questionCount} questions</Badge>
+                  <Badge variant="outline">
+                    {sub.questionCount} questions
+                  </Badge>
                 </button>
 
                 {isExpanded && (

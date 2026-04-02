@@ -20,10 +20,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useUploadData } from "@/hooks/useQueues";
 import { toast } from "sonner";
-import type { QueueInput } from "@/types/queue";
+import type { SubmissionInput } from "@/types/queue";
+
+function summarize(submissions: SubmissionInput[]) {
+  const byQueue = new Map<
+    string,
+    { submissionCount: number; questionCount: number }
+  >();
+  for (const sub of submissions) {
+    const entry = byQueue.get(sub.queueId) ?? {
+      submissionCount: 0,
+      questionCount: 0,
+    };
+    entry.submissionCount++;
+    entry.questionCount += sub.questions.length;
+    byQueue.set(sub.queueId, entry);
+  }
+  return byQueue;
+}
 
 export default function UploadPage() {
-  const [parsedData, setParsedData] = useState<QueueInput[] | null>(null);
+  const [parsedData, setParsedData] = useState<SubmissionInput[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const navigate = useNavigate();
@@ -43,22 +60,33 @@ export default function UploadPage() {
       try {
         const json = JSON.parse(e.target?.result as string);
 
-        // Support both { queues: [...] } and [...] formats
-        const queues: QueueInput[] = Array.isArray(json)
-          ? json
-          : json.queues ?? [json];
+        // Accept both top-level array and { submissions: [...] } or { queues: [...] }
+        let submissions: SubmissionInput[];
+        if (Array.isArray(json)) {
+          submissions = json;
+        } else if (Array.isArray(json.submissions)) {
+          submissions = json.submissions;
+        } else if (Array.isArray(json.queues)) {
+          // Legacy format fallback
+          submissions = json.queues;
+        } else {
+          setParseError(
+            "Expected a JSON array of submissions, or an object with a submissions array."
+          );
+          return;
+        }
 
-        // Basic validation
-        for (const q of queues) {
-          if (!q.id || !q.name || !Array.isArray(q.submissions)) {
+        // Validate each submission has required fields
+        for (const sub of submissions) {
+          if (!sub.id || !sub.queueId || !Array.isArray(sub.questions)) {
             setParseError(
-              "Invalid format: each queue must have id, name, and submissions array."
+              "Invalid format: each submission must have id, queueId, and questions array."
             );
             return;
           }
         }
 
-        setParsedData(queues);
+        setParsedData(submissions);
       } catch {
         setParseError("Failed to parse JSON. Please check the file format.");
       }
@@ -89,21 +117,17 @@ export default function UploadPage() {
     }
   };
 
-  const totalSubmissions =
-    parsedData?.reduce((acc, q) => acc + q.submissions.length, 0) ?? 0;
+  const summary = parsedData ? summarize(parsedData) : null;
+  const totalSubmissions = parsedData?.length ?? 0;
   const totalQuestions =
-    parsedData?.reduce(
-      (acc, q) =>
-        acc + q.submissions.reduce((a, s) => a + s.questions.length, 0),
-      0
-    ) ?? 0;
+    parsedData?.reduce((acc, s) => acc + s.questions.length, 0) ?? 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Upload Data</h1>
         <p className="text-muted-foreground">
-          Upload a JSON file containing queues and submissions for evaluation.
+          Upload a JSON file containing submissions for evaluation.
         </p>
       </div>
 
@@ -121,7 +145,7 @@ export default function UploadPage() {
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25 hover:border-primary/50"
             }`}
-            onDragOver={(e) => {
+            onDragOver={(e: React.DragEvent) => {
               e.preventDefault();
               setDragOver(true);
             }}
@@ -136,7 +160,7 @@ export default function UploadPage() {
               type="file"
               accept=".json"
               className="hidden"
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 const file = e.target.files?.[0];
                 if (file) handleFile(file);
               }}
@@ -152,7 +176,7 @@ export default function UploadPage() {
         </CardContent>
       </Card>
 
-      {parsedData && (
+      {parsedData && summary && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -160,34 +184,31 @@ export default function UploadPage() {
               Preview
             </CardTitle>
             <CardDescription>
-              {parsedData.length} queue(s), {totalSubmissions} submission(s),{" "}
-              {totalQuestions} question(s)
+              {totalSubmissions} submission(s), {totalQuestions} question(s)
+              across {summary.size} queue(s)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Queue</TableHead>
+                  <TableHead>Queue ID</TableHead>
                   <TableHead className="text-right">Submissions</TableHead>
                   <TableHead className="text-right">Questions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {parsedData.map((q) => (
-                  <TableRow key={q.id}>
-                    <TableCell className="font-medium">{q.name}</TableCell>
+                {Array.from(summary.entries()).map(([queueId, counts]) => (
+                  <TableRow key={queueId}>
+                    <TableCell className="font-medium">{queueId}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant="secondary">
-                        {q.submissions.length}
+                        {counts.submissionCount}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge variant="secondary">
-                        {q.submissions.reduce(
-                          (a, s) => a + s.questions.length,
-                          0
-                        )}
+                        {counts.questionCount}
                       </Badge>
                     </TableCell>
                   </TableRow>

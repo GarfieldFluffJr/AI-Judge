@@ -1,11 +1,26 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getProvider } from "../providers/registry";
-import { buildEvaluationPrompt, parseEvaluationResponse } from "./promptBuilder";
+import {
+  buildEvaluationPrompt,
+  parseEvaluationResponse,
+} from "./promptBuilder";
 
 interface BatchRequest {
   queueId: string;
   judgeId?: string;
+}
+
+interface EvalTask {
+  judgeId: string;
+  judge: { name: string; systemPrompt: string; targetModel: string };
+  question: {
+    id: string;
+    submissionId: string;
+    questionType: string;
+    questionText: string;
+    answer: Record<string, unknown>;
+  };
 }
 
 async function processWithConcurrency<T>(
@@ -77,11 +92,14 @@ export const runBatchEvaluation = onCall(
       );
     }
 
-    // Collect unique judge IDs
-    const judgeIds = [...new Set(assignmentsSnap.docs.map((d) => d.data().judgeId))];
-
-    // Fetch all judges
-    const judgeMap = new Map<string, { name: string; systemPrompt: string; targetModel: string }>();
+    // Collect unique judge IDs and fetch them
+    const judgeIds = [
+      ...new Set(assignmentsSnap.docs.map((d) => d.data().judgeId)),
+    ];
+    const judgeMap = new Map<
+      string,
+      { name: string; systemPrompt: string; targetModel: string }
+    >();
     for (const jId of judgeIds) {
       const judgeDoc = await firestore.doc(`judges/${jId}`).get();
       if (judgeDoc.exists) {
@@ -98,22 +116,20 @@ export const runBatchEvaluation = onCall(
     const apiKeysDoc = await firestore.doc("apiKeys/default").get();
     const apiKeys = apiKeysDoc.exists ? apiKeysDoc.data()! : {};
 
-    // Build list of (judge, question) pairs to evaluate
-    const evalTasks: Array<{
-      judgeId: string;
-      judge: { name: string; systemPrompt: string; targetModel: string };
-      question: { id: string; submissionId: string; type: string; text: string; options: string[]; answer: string | string[] };
-    }> = [];
+    // Build (judge, question) pairs to evaluate
+    const evalTasks: EvalTask[] = [];
 
     for (const assignDoc of assignmentsSnap.docs) {
       const assignment = assignDoc.data();
       const judge = judgeMap.get(assignment.judgeId);
       if (!judge) continue;
 
-      if (assignment.questionId) {
+      if (assignment.questionId && assignment.submissionId) {
         // Specific question assignment
         const qDoc = await firestore
-          .doc(`queues/${queueId}/submissions/${assignment.submissionId}/questions/${assignment.questionId}`)
+          .doc(
+            `queues/${queueId}/submissions/${assignment.submissionId}/questions/${assignment.questionId}`
+          )
           .get();
         if (qDoc.exists) {
           const qData = qDoc.data()!;
@@ -123,22 +139,23 @@ export const runBatchEvaluation = onCall(
             question: {
               id: qDoc.id,
               submissionId: assignment.submissionId,
-              type: qData.type,
-              text: qData.text,
-              options: qData.options ?? [],
-              answer: qData.answer,
+              questionType: qData.questionType ?? "",
+              questionText: qData.questionText ?? "",
+              answer: qData.answer ?? {},
             },
           });
         }
       } else {
-        // Queue-level assignment: get all questions
+        // Queue-level assignment: get all questions across all submissions
         const submissionsSnap = await firestore
           .collection(`queues/${queueId}/submissions`)
           .get();
 
         for (const subDoc of submissionsSnap.docs) {
           const questionsSnap = await firestore
-            .collection(`queues/${queueId}/submissions/${subDoc.id}/questions`)
+            .collection(
+              `queues/${queueId}/submissions/${subDoc.id}/questions`
+            )
             .get();
 
           for (const qDoc of questionsSnap.docs) {
@@ -149,10 +166,9 @@ export const runBatchEvaluation = onCall(
               question: {
                 id: qDoc.id,
                 submissionId: subDoc.id,
-                type: qData.type,
-                text: qData.text,
-                options: qData.options ?? [],
-                answer: qData.answer,
+                questionType: qData.questionType ?? "",
+                questionText: qData.questionText ?? "",
+                answer: qData.answer ?? {},
               },
             });
           }
@@ -160,17 +176,17 @@ export const runBatchEvaluation = onCall(
       }
     }
 
-    // Deduplicate: same judge + same question
+    // Deduplicate: same judge + same question in same submission
     const seen = new Set<string>();
     const uniqueTasks = evalTasks.filter((t) => {
-      const key = `${t.judgeId}:${t.question.id}`;
+      const key = `${t.judgeId}:${t.question.submissionId}:${t.question.id}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
     // Create pending evaluation docs
-    const evalDocs: Array<{ id: string; task: typeof uniqueTasks[0] }> = [];
+    const evalDocs: Array<{ id: string; task: EvalTask }> = [];
     for (const task of uniqueTasks) {
       const ref = await firestore.collection("evaluations").add({
         judgeId: task.judgeId,
@@ -179,7 +195,7 @@ export const runBatchEvaluation = onCall(
         queueName,
         submissionId: task.question.submissionId,
         questionId: task.question.id,
-        questionText: task.question.text,
+        questionText: task.question.questionText,
         targetModel: task.judge.targetModel,
         verdict: "inconclusive",
         reasoning: "",
@@ -192,14 +208,16 @@ export const runBatchEvaluation = onCall(
       evalDocs.push({ id: ref.id, task });
     }
 
-    // Process evaluations with concurrency limit
+    // Process with concurrency limit of 5
     const { succeeded, failed } = await processWithConcurrency(
       evalDocs,
       async ({ id, task }) => {
         const evalRef = firestore.doc(`evaluations/${id}`);
         await evalRef.update({ status: "running" });
 
-        const { provider, model, providerName } = getProvider(task.judge.targetModel);
+        const { provider, model, providerName } = getProvider(
+          task.judge.targetModel
+        );
         const apiKey = apiKeys[providerName];
 
         if (!apiKey) {
@@ -237,7 +255,8 @@ export const runBatchEvaluation = onCall(
           });
         } catch (error: unknown) {
           const durationMs = Date.now() - startTime;
-          const errMsg = error instanceof Error ? error.message : "Unknown error";
+          const errMsg =
+            error instanceof Error ? error.message : "Unknown error";
           await evalRef.update({
             status: "failed",
             errorMessage: errMsg,

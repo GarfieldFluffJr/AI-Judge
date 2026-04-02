@@ -1,70 +1,46 @@
-{
-  "queues": [
-    {
-      "id": "queue-001",
-      "name": "Geography Quiz - Batch 1",
-      "submissions": [
-        {
-          "id": "sub-001",
-          "subject": {
-            "name": "Alice Johnson",
-            "age": 25,
-            "region": "North America"
-          },
-          "questions": [
-            {
-              "id": "q-001",
-              "type": "single_choice",
-              "text": "What is the capital of France?",
-              "options": ["London", "Berlin", "Paris", "Madrid"],
-              "answer": "Paris"
-            },
-            {
-              "id": "q-002",
-              "type": "multiple_choice",
-              "text": "Which of the following are countries in South America?",
-              "options": ["Brazil", "Nigeria", "Argentina", "Thailand", "Chile"],
-              "answer": ["Brazil", "Argentina", "Chile"]
-            },
-            {
-              "id": "q-003",
-              "type": "free_form",
-              "text": "Describe the significance of the Amazon Rainforest to global ecology.",
-              "answer": "The Amazon Rainforest is the largest tropical rainforest in the world and plays a vital role in global ecology. It produces roughly 20% of the world's oxygen and absorbs large amounts of carbon dioxide, helping to regulate the global climate. It is also home to an estimated 10% of all species on Earth."
-            }
-          ]
-        },
-        {
-          "id": "sub-002",
-          "subject": {
-            "name": "Bob Smith",
-            "age": 32,
-            "region": "Europe"
-          },
-          "questions": [
-            {
-              "id": "q-001",
-              "type": "single_choice",
-              "text": "What is the capital of France?",
-              "options": ["London", "Berlin", "Paris", "Madrid"],
-              "answer": "Berlin"
-            },
-            {
-              "id": "q-002",
-              "type": "multiple_choice",
-              "text": "Which of the following are countries in South America?",
-              "options": ["Brazil", "Nigeria", "Argentina", "Thailand", "Chile"],
-              "answer": ["Brazil", "Nigeria"]
-            },
-            {
-              "id": "q-003",
-              "type": "free_form",
-              "text": "Describe the significance of the Amazon Rainforest to global ecology.",
-              "answer": "It has lots of trees."
-            }
-          ]
+[
+  {
+    "id": "sub_1",
+    "queueId": "queue_1",
+    "labelingTaskId": "task_1",
+    "createdAt": 1690000000000,
+    "questions": [
+      {
+        "rev": 1,
+        "data": {
+          "id": "q_template_1",
+          "questionType": "single_choice_with_reasoning",
+          "questionText": "Is the sky blue?"
         }
-      ]
+      }
+    ],
+    "answers": {
+      "q_template_1": {
+        "choice": "yes",
+        "reasoning": "Observed on a clear day."
+      }
     }
-  ]
-}
+  },
+  {
+    "id": "sub_2",
+    "queueId": "queue_1",
+    "labelingTaskId": "task_1",
+    "createdAt": 1690000100000,
+    "questions": [
+      {
+        "rev": 1,
+        "data": {
+          "id": "q_template_1",
+          "questionType": "single_choice_with_reasoning",
+          "questionText": "Is the sky blue?"
+        }
+      }
+    ],
+    "answers": {
+      "q_template_1": {
+        "choice": "no",
+        "reasoning": "It looked grey today."
+      }
+    }
+  }
+]

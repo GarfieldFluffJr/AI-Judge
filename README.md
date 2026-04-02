@@ -7,49 +7,39 @@ A web app that lets users upload annotation submissions, configure AI judges wit
 ### Prerequisites
 
 - Node.js 20+
-- A Firebase project (free Spark plan works for Firestore; Blaze required for Cloud Functions)
-- API key(s) for at least one LLM provider
+- A Firebase project (free Spark plan — no paid plan required)
+- API key(s) for at least one LLM provider (OpenAI, Anthropic, or Google Gemini)
 
 ### Setup
 
 ```bash
-# Install dependencies
+# Install frontend dependencies
 cd frontend && npm install
-cd ../functions && npm install
 
-# Configure Firebase
-# 1. Create a project at https://console.firebase.google.com
-# 2. Enable Firestore in the Firebase console
-# 3. Copy your web app config into frontend/.env.local:
-cp frontend/.env.local.example frontend/.env.local
-# Edit the values with your Firebase project config
+# Create your environment config
+cp .env.template .env.local
+# Edit .env.local with your Firebase project config
+# (Find these in Firebase Console → Project Settings → General → Web App)
 ```
 
-### Development (with emulators)
+### Running
 
 ```bash
-# Terminal 1: Start Firebase emulators
-firebase emulators:start
-
-# Terminal 2: Start frontend dev server
 cd frontend && npm run dev
 ```
 
-### Development (with live Firebase)
-
-```bash
-# Deploy Cloud Functions (requires Blaze plan)
-cd functions && npm run deploy
-
-# Start frontend pointing at live Firebase
-cd frontend && npm run dev
-```
+Then in the app:
+1. **Settings** — paste your LLM provider API key(s)
+2. **Upload** — upload `test_input.json` (included in repo root)
+3. **Judges** — create a judge with a name, model, and rubric prompt
+4. **Queues** — click a queue → Assign Judge → Run AI Judges
+5. **Results** — view evaluations with filters and charts
 
 ### Production Build
 
 ```bash
 cd frontend && npm run build
-firebase deploy
+# Deploy dist/ to any static hosting (Firebase Hosting, Vercel, Netlify, etc.)
 ```
 
 ## Architecture
@@ -60,8 +50,8 @@ firebase deploy
 |-------|-----------|-----|
 | Frontend | React 19 + TypeScript + Vite | Modern, fast, type-safe |
 | UI | shadcn/ui + Tailwind CSS v4 | Composable components, no runtime overhead |
-| Backend | Firebase (Firestore + Cloud Functions v2) | Managed, serverless, real-time capable |
-| LLM Integration | OpenAI, Anthropic, Gemini SDKs | Direct SDK calls, no abstraction layer overhead |
+| Backend | Firebase Firestore (free Spark plan) | Managed NoSQL, no server to run |
+| LLM Integration | Direct `fetch()` to OpenAI, Anthropic, Gemini APIs | Zero SDK bloat, runs in the browser |
 | State | TanStack Query | Server-state caching, automatic refetch |
 | Routing | React Router v7 | Declarative, lazy-loaded routes |
 
@@ -72,14 +62,16 @@ JSON Upload → Parse & group by queueId → Firestore (queues/submissions/quest
                                               ↓
                               Assign judges to queues
                                               ↓
-                         "Run AI Judges" → Cloud Function
+                "Run AI Judges" → browser calls LLM APIs directly
                                               ↓
-                    For each (judge × question): call LLM API
+                    For each (judge × question): call LLM, parse verdict
                                               ↓
-                        Parse verdict → Store evaluation in Firestore
+                        Store evaluation in Firestore
                                               ↓
                           Results page ← Query evaluations with filters
 ```
+
+All LLM calls happen client-side using the user's own API keys. No Cloud Functions or paid Firebase plan required.
 
 ### Firestore Schema
 
@@ -89,13 +81,13 @@ JSON Upload → Parse & group by queueId → Firestore (queues/submissions/quest
 - `judges/{judgeId}` — name, systemPrompt, targetModel (e.g. `openai/gpt-4o`), active flag
 - `assignments/{id}` — judgeId, queueId, questionId (null = all questions)
 - `evaluations/{id}` — verdict, reasoning, status, denormalized judge/question info
-- `apiKeys/default` — per-provider API keys
+- `apiKeys/default` — per-provider API keys entered by the user
 
 ## Design Decisions
 
-### Why direct Firestore writes instead of Cloud Functions for upload?
+### Why client-side LLM calls instead of Cloud Functions?
 
-The upload operation is straightforward batch writes with no server-side logic needed. Using `writeBatch` directly from the client avoids a round-trip through Cloud Functions and keeps the code simpler. The Cloud Function is reserved for the evaluation runner where we need server-side secrets (API keys) and long-running LLM calls.
+Cloud Functions require the Firebase Blaze (paid) plan. Since users provide their own API keys and this is a single-user demo app, calling LLM APIs directly from the browser via `fetch()` is simpler and free. The trade-off is that API keys are visible in the browser's network tab, which is acceptable when the user is providing their own keys. In production, you'd proxy through a backend.
 
 ### Why hand-rolled SVG charts instead of Recharts?
 
@@ -107,7 +99,7 @@ Firestore doesn't support `IN` queries across multiple fields simultaneously. Ra
 
 ### Why `provider/model` string format?
 
-Storing the target model as `"openai/gpt-4o"` instead of separate `provider` + `model` fields keeps the judge definition simple and makes the provider registry a straightforward string split. The trade-off is parsing on every evaluation, which is negligible.
+Storing the target model as `"openai/gpt-4o"` instead of separate `provider` + `model` fields keeps the judge definition simple and makes the provider routing a straightforward string split. The trade-off is parsing on every evaluation, which is negligible.
 
 ### Why no authentication?
 
@@ -117,26 +109,24 @@ This is a single-user take-home project. Adding Firebase Auth would add complexi
 
 - **No file attachment forwarding**: Would require Firebase Storage + multimodal API calls. Deferred to keep scope focused.
 - **No per-question judge assignment UI**: Judges are assigned at the queue level. The data model supports per-question assignment, but the UI only exposes queue-level for simplicity.
-- **No real-time evaluation progress**: The UI polls on completion rather than using Firestore `onSnapshot` listeners. Would be a small addition for a smoother UX.
+- **No real-time evaluation progress**: Evaluations update on completion rather than streaming progress via Firestore `onSnapshot` listeners. Would be a small addition for a smoother UX.
 
 ## Project Structure
 
 ```
 ├── frontend/                  # React + Vite app
+│   ├── .env.template          # Template for environment config
 │   └── src/
 │       ├── components/
 │       │   ├── ui/            # shadcn/ui components
 │       │   ├── layout/        # AppShell, Sidebar
 │       │   └── charts/        # Hand-rolled SVG DonutChart, BarChart
 │       ├── hooks/             # TanStack Query hooks per domain
-│       ├── lib/               # Firebase init, Firestore helpers, constants
+│       ├── lib/               # Firebase init, Firestore helpers, LLM client, constants
 │       ├── pages/             # Route page components (lazy-loaded)
 │       └── types/             # TypeScript interfaces
-├── functions/                 # Firebase Cloud Functions
-│   └── src/
-│       ├── evaluations/       # Batch runner, prompt builder
-│       └── providers/         # OpenAI, Anthropic, Gemini adapters + registry
-├── firebase.json              # Emulator + hosting + functions config
+├── functions/                 # Firebase Cloud Functions (optional, not required)
+├── firebase.json              # Firebase project config
 ├── firestore.rules            # Security rules (open for demo)
 └── test_input.json            # Sample input matching real format
 ```

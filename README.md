@@ -97,20 +97,6 @@ Recharts added 380KB to the results page bundle for two simple charts (a donut a
 
 Firestore doesn't support `IN` queries across multiple fields simultaneously. Rather than denormalize data further or use complex composite indexes, evaluations are fetched with a single `orderBy(createdAt)` query (optionally filtered by queueId) and multi-select filters (judge, question, verdict) are applied client-side. This is fine for the expected data volumes (hundreds to low thousands of evaluations).
 
-### Why `provider/model` string format?
-
-Storing the target model as `"openai/gpt-4o"` instead of separate `provider` + `model` fields keeps the judge definition simple and makes the provider routing a straightforward string split. The trade-off is parsing on every evaluation, which is negligible.
-
-### Why no authentication?
-
-This is a single-user take-home project. Adding Firebase Auth would add complexity without demonstrating relevant skills. The Firestore rules are open (`allow read, write: if true`). In production, you'd add auth and scope data access per user/team.
-
-### Scope cuts
-
-- **No file attachment forwarding**: Would require Firebase Storage + multimodal API calls. Deferred to keep scope focused.
-- **No per-question judge assignment UI**: Judges are assigned at the queue level. The data model supports per-question assignment, but the UI only exposes queue-level for simplicity.
-- **No real-time evaluation progress**: Evaluations update on completion rather than streaming progress via Firestore `onSnapshot` listeners. Would be a small addition for a smoother UX.
-
 ## Project Structure
 
 ```

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { ListChecks, Upload, ChevronRight } from "lucide-react";
+import { ListChecks, Upload, ChevronRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,11 +9,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useQueues } from "@/hooks/useQueues";
+import { useQueues, useDeleteQueue } from "@/hooks/useQueues";
+import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function QueuesPage() {
   const { data: queues, isLoading } = useQueues();
+  const deleteQueue = useDeleteQueue();
+
+  const handleDelete = (e: React.MouseEvent, queueId: string) => {
+    e.preventDefault(); // prevent navigating into the queue
+    e.stopPropagation();
+    deleteQueue.mutate(queueId, {
+      onSuccess: () => toast.success("Queue deleted"),
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to delete"),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -66,7 +78,15 @@ export default function QueuesPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between text-base">
                     {queue.name}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => handleDelete(e, queue.id)}
+                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </CardTitle>
                   <CardDescription>
                     Uploaded {format(queue.uploadedAt, "MMM d, yyyy")}

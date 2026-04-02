@@ -5,6 +5,7 @@ import {
   BarChart3,
   ListChecks,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,13 +23,38 @@ import { VERDICT_COLORS } from "@/lib/constants";
 import { format } from "date-fns";
 
 export default function DashboardPage() {
-  const { data: queues } = useQueues();
-  const { data: judges } = useJudges();
-  const { data: stats } = useEvaluationStats();
+  const { data: queues, isLoading: queuesLoading } = useQueues();
+  const { data: judges, isLoading: judgesLoading } = useJudges();
+  const { data: stats, isLoading: statsLoading } = useEvaluationStats();
   const { data: recentEvals } = useEvaluations();
 
+  const isLoading = queuesLoading || judgesLoading || statsLoading;
   const activeJudges = judges?.filter((j) => j.active).length ?? 0;
   const recent = recentEvals?.slice(0, 5) ?? [];
+  const isEmpty = !queues?.length && !judges?.length && !recentEvals?.length;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Loading overview...</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 w-20 rounded bg-muted" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-12 rounded bg-muted" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -131,6 +157,20 @@ export default function DashboardPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Empty state */}
+      {isEmpty && (
+        <Card className="flex flex-col items-center py-12">
+          <Loader2 className="mb-4 h-12 w-12 text-muted-foreground" />
+          <p className="mb-2 font-medium">Get started</p>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Upload a dataset, create a judge, and run your first evaluation.
+          </p>
+          <Button asChild>
+            <Link to="/upload">Upload Data</Link>
+          </Button>
+        </Card>
+      )}
 
       {/* Recent Evaluations */}
       {recent.length > 0 && (

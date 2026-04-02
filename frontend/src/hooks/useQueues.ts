@@ -5,6 +5,7 @@ import {
   fetchSubmissions,
   fetchQuestions,
   uploadSubmissions,
+  deleteQueue,
 } from "@/lib/firestore";
 import type { SubmissionInput } from "@/types/queue";
 
@@ -36,6 +37,16 @@ export function useQuestions(queueId: string, submissionId: string) {
     queryKey: ["queues", queueId, "submissions", submissionId, "questions"],
     queryFn: () => fetchQuestions(queueId, submissionId),
     enabled: !!queueId && !!submissionId,
+  });
+}
+
+export function useDeleteQueue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (queueId: string) => deleteQueue(queueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queues"] });
+    },
   });
 }
 

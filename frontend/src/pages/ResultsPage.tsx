@@ -355,6 +355,7 @@ export default function ResultsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Submission</TableHead>
                   <TableHead>Question</TableHead>
                   <TableHead>Judge</TableHead>
                   <TableHead>Verdict</TableHead>
@@ -375,6 +376,9 @@ export default function ResultsPage() {
                         )
                       }
                     >
+                      <TableCell className="text-sm text-muted-foreground">
+                        {ev.submissionId}
+                      </TableCell>
                       <TableCell className="max-w-[200px] truncate text-sm">
                         {ev.questionText}
                       </TableCell>
@@ -414,7 +418,7 @@ export default function ResultsPage() {
                     </TableRow>
                     {expandedRow === ev.id && (
                       <TableRow key={`${ev.id}-detail`}>
-                        <TableCell colSpan={6} className="bg-muted/50">
+                        <TableCell colSpan={7} className="bg-muted/50">
                           <div className="space-y-2 p-2">
                             <div>
                               <span className="text-xs font-medium">

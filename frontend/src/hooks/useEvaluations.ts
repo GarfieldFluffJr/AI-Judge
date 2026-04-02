@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchEvaluations } from "@/lib/firestore";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import {
+  runBatchEvaluation,
+  type BatchResult,
+} from "@/lib/evaluationRunner";
 import type { EvaluationFilters, EvaluationStats } from "@/types/evaluation";
+import type { Judge } from "@/types/judge";
 
 export function useEvaluations(filters: EvaluationFilters = {}) {
   return useQuery({
@@ -41,13 +44,18 @@ export function useEvaluationStats(filters: EvaluationFilters = {}): {
 export function useRunBatchEvaluation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { queueId: string; judgeId?: string }) => {
-      const callable = httpsCallable<
-        { queueId: string; judgeId?: string },
-        { total: number; succeeded: number; failed: number; evaluationIds: string[] }
-      >(functions, "runBatchEvaluation");
-      const result = await callable(params);
-      return result.data;
+    mutationFn: async (params: {
+      queueId: string;
+      queueName: string;
+      judges: Judge[];
+      onProgress?: (completed: number, total: number) => void;
+    }): Promise<BatchResult> => {
+      return runBatchEvaluation(
+        params.queueId,
+        params.queueName,
+        params.judges,
+        params.onProgress
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["evaluations"] });

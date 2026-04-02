@@ -161,9 +161,13 @@ export default function QueueDetailPage() {
   };
 
   const handleRunEvaluations = async () => {
-    if (!queueId) return;
+    if (!queueId || !queue || !judges) return;
     try {
-      const result = await runBatch.mutateAsync({ queueId });
+      const result = await runBatch.mutateAsync({
+        queueId,
+        queueName: queue.name,
+        judges,
+      });
       toast.success(
         `Evaluation complete: ${result.succeeded} succeeded, ${result.failed} failed out of ${result.total} total`
       );
